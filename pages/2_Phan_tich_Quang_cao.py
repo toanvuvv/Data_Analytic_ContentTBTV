@@ -155,7 +155,7 @@ def render_campaign_dashboard():
     tong_ngan_sach = df_filtered['Đầu tư ngân sách'].sum()
     tong_kh_tiem_nang = df_filtered['KH Tiềm Năng (Mess)'].sum()
     tong_kh_moi = df_filtered['Số Lượng Khách Hàng'].sum()
-    tong_don_hang = df_filtered['Số đơn hàng'].sum()
+    tong_don_hang = tong_kh_moi
     roas = tong_doanh_so / tong_ngan_sach if tong_ngan_sach > 0 else 0
     chi_phi_tren_mess = tong_ngan_sach / tong_kh_tiem_nang if tong_kh_tiem_nang > 0 else 0
     chi_phi_tren_kh_moi = tong_ngan_sach / tong_kh_moi if tong_kh_moi > 0 else 0
