@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-
+import os # Thêm thư viện os
+from utils.auth import check_password
 # Nhập các hàm đã được tách ra từ module utils
 from utils.data_processing import extract_social_data
 from utils.plotting import (
@@ -13,7 +14,6 @@ from utils.plotting import (
 from utils.helpers import to_excel
 
 # ========================== CÁC HẰNG SỐ CẤU HÌNH ==========================
-# Các hằng số này đặc thù cho dashboard Social Media
 METRIC_MAPPING = {
     "Follower": "Follower",
     "Lượt xem (views)": "Lượt xem (views)",
@@ -35,6 +35,30 @@ REQUIRED_METRICS = [
 ]
 
 CONTENT_METRICS = ["Video/ clips/ Reels", "Text + Ảnh", "Back + text"]
+check_password()
+
+# --- BẮT ĐẦU PHẦN CẢI TIẾN: HÀM LƯU/TẢI LINK ---
+# Vị trí file tạm để lưu link Google Sheet cho trang Social
+LINK_FILE_SOCIAL = "temp_social_gsheet_link.txt"
+
+def save_link_social(link):
+    """Lưu link vào file tạm."""
+    try:
+        with open(LINK_FILE_SOCIAL, "w") as f:
+            f.write(link)
+    except Exception as e:
+        st.sidebar.warning(f"Không thể lưu link: {e}")
+
+def load_link_social():
+    """Đọc link từ file tạm nếu có."""
+    if os.path.exists(LINK_FILE_SOCIAL):
+        try:
+            with open(LINK_FILE_SOCIAL, "r") as f:
+                return f.read().strip()
+        except Exception as e:
+            st.sidebar.warning(f"Không thể đọc link đã lưu: {e}")
+    return ""
+# --- KẾT THÚC PHẦN CẢI TIẾN ---
 
 
 def render_social_dashboard():
@@ -66,14 +90,27 @@ def render_social_dashboard():
                 df_raw = pd.read_excel(uploaded_file, header=None, engine='openpyxl')
             except Exception as e:
                 st.error(f"Lỗi khi xử lý file Excel: {e}")
+                
     elif data_source == 'Google Sheet (link public share)':
-        sheet_url = st.sidebar.text_input("Dán link Google Sheet đã share:", key="social_gsheet")
+        # --- BẮT ĐẦU PHẦN CẢI TIẾN: TÍCH HỢP LƯU/TẢI LINK ---
+        saved_link = load_link_social()
+        sheet_url = st.sidebar.text_input(
+            "Dán link Google Sheet đã share:", 
+            value=saved_link, 
+            key="social_gsheet"
+        )
+        
         if sheet_url:
+            if sheet_url != saved_link:
+                save_link_social(sheet_url)
+            
             try:
+                # Trang social thường chỉ cần đọc sheet đầu tiên, nên dùng export csv là đủ
                 csv_export_url = sheet_url.replace('/edit?usp=sharing', '/export?format=csv').replace('/edit', '/export?format=csv')
                 df_raw = pd.read_csv(csv_export_url, header=None)
             except Exception as e:
                 st.error(f"Lỗi khi đọc Google Sheet. Hãy chắc chắn link là public. Lỗi: {e}")
+        # --- KẾT THÚC PHẦN CẢI TIẾN ---
 
     if df_raw is None:
         st.info("💡 Vui lòng nhập dữ liệu cho dashboard Social Media để bắt đầu.")
