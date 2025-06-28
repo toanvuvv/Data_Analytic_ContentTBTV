@@ -13,7 +13,7 @@ from utils.plotting import (
     plot_content_distribution_bar_chart # <-- THÊM HÀM MỚI
 )
 from utils.helpers import to_excel
-
+st.set_page_config(layout="wide")
 # ========================== CÁC HẰNG SỐ CẤU HÌNH ==========================
 METRIC_MAPPING = {
     "Follower": "Follower",
