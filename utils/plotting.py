@@ -118,3 +118,72 @@ def plot_time_series_line_chart(st, df, metric, group_by):
         title=f"Xu hướng {metric} theo thời gian", markers=True
     )
     st.plotly_chart(fig, use_container_width=True)
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# (Các hàm plot khác của bạn ở đây...)
+
+def plot_content_distribution_bar_chart(st, df, content_columns):
+    """
+    Vẽ biểu đồ cột nhóm thể hiện tỷ trọng các loại nội dung trên từng kênh.
+    df: DataFrame ở dạng wide, đã được lọc.
+    content_columns: list các cột chứa số lượng của từng loại nội dung.
+    """
+    st.write("#### 📊 Tỷ Trọng Loại Nội Dung Theo Kênh")
+
+    # 1. Chỉ chọn các cột cần thiết: Tên kênh và các cột nội dung, sau đó tính tổng cho mỗi kênh
+    df_content = df[['Tên kênh'] + content_columns].copy()
+    df_grouped = df_content.groupby('Tên kênh')[content_columns].sum().reset_index()
+
+    # 2. Chuyển từ định dạng wide sang long để dễ vẽ biểu đồ
+    df_melted = df_grouped.melt(
+        id_vars=['Tên kênh'], 
+        value_vars=content_columns, 
+        var_name='Loại nội dung', 
+        value_name='Số lượng'
+    )
+
+    # 3. Tính tổng số bài đăng cho mỗi kênh để tính tỷ lệ phần trăm
+    # Dùng transform để broadcast tổng số bài đăng về lại cho mỗi dòng của kênh tương ứng
+    df_melted['Tổng bài đăng'] = df_melted.groupby('Tên kênh')['Số lượng'].transform('sum')
+    
+    # 4. Tính tỷ lệ phần trăm, tránh lỗi chia cho 0
+    df_melted['Tỷ lệ (%)'] = (df_melted['Số lượng'] / df_melted['Tổng bài đăng'].replace(0, 1)) * 100
+
+    # 5. Vẽ biểu đồ
+    fig = px.bar(
+        df_melted,
+        x='Tên kênh',
+        y='Tỷ lệ (%)',
+        color='Loại nội dung',
+        barmode='group',
+        title='Phân Bổ Tỷ Lệ Các Loại Nội Dung Theo Kênh',
+        labels={
+            'Tỷ lệ (%)': 'Tỷ lệ (%)',
+            'Tên kênh': 'Kênh',
+            'Loại nội dung': 'Loại Nội Dung'
+        },
+        text=df_melted['Tỷ lệ (%)'].apply(lambda x: f'{x:.1f}%'),
+        height=500,
+        color_discrete_map={ # Bạn có thể tùy chỉnh màu sắc ở đây
+             "Video/ clips/ Reels": "#1f77b4",
+             "Text + Ảnh": "#ff7f0e",
+             "Back + text": "#2ca02c"
+         }
+    )
+
+    # Tùy chỉnh giao diện biểu đồ
+    fig.update_layout(
+        xaxis_title='Kênh',
+        yaxis_title='Tỷ lệ phân phối (%)',
+        legend_title='Loại Nội Dung',
+        yaxis=dict(ticksuffix='%'),
+        uniformtext_minsize=8, 
+        uniformtext_mode='hide',
+        xaxis={'categoryorder':'total descending'} # Sắp xếp các kênh theo tổng tỷ lệ
+    )
+    fig.update_traces(textposition='outside')
+
+    st.plotly_chart(fig, use_container_width=True)
+

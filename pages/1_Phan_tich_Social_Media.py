@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os # Thêm thư viện os
+import os
 from utils.auth import check_password
 # Nhập các hàm đã được tách ra từ module utils
 from utils.data_processing import extract_social_data
@@ -9,7 +9,8 @@ from utils.plotting import (
     plot_trends_line_chart,
     plot_follower_growth_line_chart,
     plot_comparison_bar_chart,
-    plot_content_pie_chart
+    plot_content_pie_chart,
+    plot_content_distribution_bar_chart # <-- THÊM HÀM MỚI
 )
 from utils.helpers import to_excel
 
@@ -36,8 +37,8 @@ REQUIRED_METRICS = [
 
 CONTENT_METRICS = ["Video/ clips/ Reels", "Text + Ảnh", "Back + text"]
 check_password()
+st.set_page_config(layout="wide")
 
-# --- BẮT ĐẦU PHẦN CẢI TIẾN: HÀM LƯU/TẢI LINK ---
 # Vị trí file tạm để lưu link Google Sheet cho trang Social
 LINK_FILE_SOCIAL = "temp_social_gsheet_link.txt"
 
@@ -58,8 +59,6 @@ def load_link_social():
         except Exception as e:
             st.sidebar.warning(f"Không thể đọc link đã lưu: {e}")
     return ""
-# --- KẾT THÚC PHẦN CẢI TIẾN ---
-
 
 def render_social_dashboard():
     """
@@ -92,7 +91,6 @@ def render_social_dashboard():
                 st.error(f"Lỗi khi xử lý file Excel: {e}")
                 
     elif data_source == 'Google Sheet (link public share)':
-        # --- BẮT ĐẦU PHẦN CẢI TIẾN: TÍCH HỢP LƯU/TẢI LINK ---
         saved_link = load_link_social()
         sheet_url = st.sidebar.text_input(
             "Dán link Google Sheet đã share:", 
@@ -105,12 +103,10 @@ def render_social_dashboard():
                 save_link_social(sheet_url)
             
             try:
-                # Trang social thường chỉ cần đọc sheet đầu tiên, nên dùng export csv là đủ
                 csv_export_url = sheet_url.replace('/edit?usp=sharing', '/export?format=csv').replace('/edit', '/export?format=csv')
                 df_raw = pd.read_csv(csv_export_url, header=None)
             except Exception as e:
                 st.error(f"Lỗi khi đọc Google Sheet. Hãy chắc chắn link là public. Lỗi: {e}")
-        # --- KẾT THÚC PHẦN CẢI TIẾN ---
 
     if df_raw is None:
         st.info("💡 Vui lòng nhập dữ liệu cho dashboard Social Media để bắt đầu.")
@@ -130,6 +126,9 @@ def render_social_dashboard():
             df_wide[col] = 0
         else:
             df_wide[col] = pd.to_numeric(df_wide[col], errors='coerce').fillna(0)
+            
+    # Tính tổng số nội dung được đăng (Total content publish) từ các loại nội dung chi tiết
+    df_wide['Total content publish'] = df_wide[CONTENT_METRICS].sum(axis=1)
 
     df_wide = df_wide[pivot_cols + REQUIRED_METRICS]
 
@@ -143,7 +142,7 @@ def render_social_dashboard():
         key="social_channels"
     )
 
-    valid_dates = df_wide['Ngày Bắt Đầu'].dropna()
+    valid_dates = pd.to_datetime(df_wide['Ngày Bắt Đầu'], errors='coerce').dropna()
     if valid_dates.empty:
         st.error("Không có dữ liệu ngày hợp lệ trong file.")
         st.stop()
@@ -164,8 +163,8 @@ def render_social_dashboard():
 
     df_filtered = df_wide[
         (df_wide['Tên kênh'].isin(selected_channel_names)) &
-        (df_wide['Ngày Bắt Đầu'].dt.date >= start_date) &
-        (df_wide['Ngày Bắt Đầu'].dt.date <= end_date)
+        (pd.to_datetime(df_wide['Ngày Bắt Đầu']).dt.date >= start_date) &
+        (pd.to_datetime(df_wide['Ngày Bắt Đầu']).dt.date <= end_date)
     ].copy()
 
     if df_filtered.empty:
@@ -178,7 +177,7 @@ def render_social_dashboard():
     total_engagement = int(df_filtered["Engagement (like/ cmt/ share)"].sum())
     total_content = int(df_filtered["Total content publish"].sum())
 
-    latest_followers_per_channel = df_filtered.sort_values('Ngày Bắt Đầu').groupby('Tên kênh').tail(1)
+    latest_followers_per_channel = df_filtered.sort_values(by='Ngày Bắt Đầu').groupby('Tên kênh').tail(1)
     total_followers_end_period = int(latest_followers_per_channel['Follower'].sum())
 
     col1, col2, col3, col4 = st.columns(4)
@@ -205,14 +204,24 @@ def render_social_dashboard():
         }).reset_index()
         plot_comparison_bar_chart(st, df_grouped, 'Tên kênh', "Lượt xem (views)", "Tổng Lượt Xem Theo Tên Kênh")
         plot_comparison_bar_chart(st, df_grouped, 'Tên kênh', "Engagement (like/ cmt/ share)", "Tổng Tương Tác Theo Tên Kênh")
+    
+    st.markdown("---") # Thêm đường kẻ ngang phân tách
 
+    # ======================= PHÂN TÍCH CƠ CẤU NỘI DUNG (CẬP NHẬT) =======================
     st.subheader("Phân Tích Cơ Cấu Nội Dung")
+    # Biểu đồ tròn thể hiện cơ cấu nội dung tổng thể
     plot_content_pie_chart(st, df_filtered, CONTENT_METRICS)
+    
+    # Biểu đồ cột thể hiện tỷ trọng nội dung theo từng kênh (phần mới)
+    plot_content_distribution_bar_chart(st, df_filtered, CONTENT_METRICS)
+
 
     # ========================== BẢNG CHI TIẾT & DOWNLOAD ==========================
     st.markdown("---")
     st.subheader("Bảng Dữ Liệu Chi Tiết")
-    st.dataframe(df_filtered)
+    # Sắp xếp lại cột để dễ đọc hơn
+    display_cols = pivot_cols + [col for col in REQUIRED_METRICS if col in df_filtered.columns]
+    st.dataframe(df_filtered[display_cols])
 
     try:
         excel_data = to_excel(df_filtered)

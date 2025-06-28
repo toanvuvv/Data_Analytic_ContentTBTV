@@ -6,9 +6,11 @@ from plotly.subplots import make_subplots
 import os # Thêm thư viện os để làm việc với file
 from io import BytesIO # Thêm thư viện io
 from utils.auth import check_password
+
 # ========================== CẤU HÌNH TRANG ==========================
 st.set_page_config(layout="wide")
-check_password()
+# check_password()
+
 # ========================== CÁC HÀM PHỤ TRỢ (FALLBACK & HELPERS) ==========================
 # Giữ nguyên các hàm của bạn, đảm bảo code chạy độc lập
 try:
@@ -39,7 +41,6 @@ except ImportError:
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False, sheet_name='FilteredData')
-        # writer.save() # This is deprecated and handled by with statement
         return output.getvalue()
 
 # --- BẮT ĐẦU PHẦN CẢI TIẾN: HÀM LƯU/TẢI LINK ---
@@ -211,13 +212,12 @@ def render_campaign_dashboard():
         st.stop()
 
     # ========================== KPI TỔNG QUAN (DỰA TRÊN DỮ LIỆU ĐÃ LỌC) ==========================
-    # (Giữ nguyên toàn bộ phần tính toán và hiển thị KPI của bạn)
     st.subheader("KPI Tổng quan (từ dữ liệu đã lọc)")
     tong_doanh_so = df_filtered['Doanh số'].sum()
     tong_ngan_sach = df_filtered['Đầu tư ngân sách'].sum()
     tong_kh_tiem_nang = df_filtered['KH Tiềm Năng (Mess)'].sum()
     tong_kh_moi = df_filtered['Số Lượng Khách Hàng'].sum()
-    tong_don_hang = tong_kh_moi # Giả định của bạn
+    tong_don_hang = tong_kh_moi 
     roas = tong_doanh_so / tong_ngan_sach if tong_ngan_sach > 0 else 0
     chi_phi_tren_mess = tong_ngan_sach / tong_kh_tiem_nang if tong_kh_tiem_nang > 0 else 0
     chi_phi_tren_kh_moi = tong_ngan_sach / tong_kh_moi if tong_kh_moi > 0 else 0
@@ -241,12 +241,10 @@ def render_campaign_dashboard():
     st.divider()
 
     # ========================== SO SÁNH HIỆU SUẤT ==========================
-    # (Giữ nguyên toàn bộ phần vẽ biểu đồ so sánh của bạn)
     st.subheader("So sánh Hiệu suất")
     tab1, tab2 = st.tabs(["So sánh theo Người chạy Ads", "So sánh theo Chiến dịch"])
 
     with tab1:
-        # Code vẽ biểu đồ cho tab 1 của bạn...
         st.markdown("#### Phân tích tổng quan theo người chạy")
         df_sheet_sum = df_filtered.groupby('sheet').agg({
             'Doanh số': 'sum', 'Đầu tư ngân sách': 'sum', 'Số Lượng Khách Hàng': 'sum'
@@ -270,26 +268,57 @@ def render_campaign_dashboard():
         else:
             st.info("Không có dữ liệu của người chạy ads để hiển thị với bộ lọc hiện tại.")
 
+    # ========================= TAB 2 - ĐÃ CẬP NHẬT =========================
     with tab2:
-        # Code vẽ biểu đồ cho tab 2 của bạn...
         st.markdown("#### Phân tích tổng quan theo chiến dịch")
         df_camp_sum = df_filtered.groupby(['sheet', 'campaign']).agg({
             'Doanh số': 'sum', 'Đầu tư ngân sách': 'sum'
         }).reset_index()
         df_camp_sum['ROAS'] = df_camp_sum.apply(lambda r: r['Doanh số'] / r['Đầu tư ngân sách'] if r['Đầu tư ngân sách'] > 0 else 0, axis=1)
-        df_camp_sum = df_camp_sum[df_camp_sum['Doanh số'] > 0]
+
+        # Tách dataframe để xử lý các trường hợp khác nhau
+        df_camp_sum_revenue = df_camp_sum[df_camp_sum['Doanh số'] > 0]
+        df_camp_sum_budget = df_camp_sum[df_camp_sum['Đầu tư ngân sách'] > 0]
+
         if not df_camp_sum.empty:
+            # --- Biểu đồ Treemap Doanh số ---
             st.markdown("##### Cơ cấu Doanh số và Hiệu quả ROAS")
-            fig_treemap = px.treemap(
-                df_camp_sum, path=[px.Constant("Tất cả chiến dịch"), 'sheet', 'campaign'],
-                values='Doanh số', color='ROAS', color_continuous_scale='RdYlGn',
-                hover_data={'ROAS': ':.2f', 'Đầu tư ngân sách': ':,.0f'},
-                title='Cơ Cấu Doanh Số & Hiệu Quả ROAS Theo Từng Chiến Dịch'
-            )
-            fig_treemap.update_traces(textinfo='label+value', textfont_size=14)
-            st.plotly_chart(fig_treemap, use_container_width=True)
-            with st.expander("📘 Hướng dẫn đọc biểu đồ Treemap"):
-                st.write("""...""") # Nội dung hướng dẫn của bạn
+            if not df_camp_sum_revenue.empty:
+                fig_treemap = px.treemap(
+                    df_camp_sum_revenue, path=[px.Constant("Tất cả chiến dịch"), 'sheet', 'campaign'],
+                    values='Doanh số', color='ROAS', color_continuous_scale='RdYlGn',
+                    hover_data={'ROAS': ':.2f', 'Đầu tư ngân sách': ':,.0f'},
+                    title='Cơ Cấu Doanh Số & Hiệu Quả ROAS Theo Từng Chiến Dịch'
+                )
+                fig_treemap.update_traces(textinfo='label+value', textfont_size=14)
+                st.plotly_chart(fig_treemap, use_container_width=True)
+                with st.expander("📘 Hướng dẫn đọc biểu đồ Treemap (Doanh số)"):
+                    st.write("""Mỗi ô chữ nhật đại diện cho một chiến dịch. Kích thước của ô tương ứng với **Doanh số**. Màu sắc thể hiện **ROAS** (xanh lá = cao, đỏ = thấp).""")
+            else:
+                st.info("Không có dữ liệu doanh số để hiển thị treemap.")
+            
+            st.divider()
+
+            # --- Biểu đồ Treemap Ngân sách (MỚI) ---
+            st.markdown("##### Cơ cấu Phân bổ Ngân sách")
+            if not df_camp_sum_budget.empty:
+                fig_treemap_budget = px.treemap(
+                    df_camp_sum_budget, path=[px.Constant("Tất cả chiến dịch"), 'sheet', 'campaign'],
+                    values='Đầu tư ngân sách', color='Đầu tư ngân sách',
+                    color_continuous_scale='Oranges',
+                    hover_data={'ROAS': ':.2f', 'Doanh số': ':,.0f'},
+                    title='Cơ Cấu Phân Bổ Ngân Sách Theo Từng Chiến Dịch'
+                )
+                fig_treemap_budget.update_traces(textinfo='label+value', textfont_size=14)
+                st.plotly_chart(fig_treemap_budget, use_container_width=True)
+                with st.expander("📘 Hướng dẫn đọc biểu đồ Treemap (Ngân sách)"):
+                    st.write("""Mỗi ô chữ nhật đại diện cho một chiến dịch. Kích thước và màu sắc của ô tương ứng với **Ngân sách đã đầu tư** (càng lớn/đậm là càng nhiều).""")
+            else:
+                st.info("Không có dữ liệu ngân sách để hiển thị treemap.")
+            
+            st.divider()
+
+            # --- Biểu đồ Bubble chart ---
             st.markdown("##### Phân nhóm hiệu suất chiến dịch")
             fig_bubble = px.scatter(
                 df_camp_sum, x='Đầu tư ngân sách', y='Doanh số', size='ROAS',
@@ -301,7 +330,6 @@ def render_campaign_dashboard():
 
 
     # ========================== PHÂN TÍCH XU HƯỚNG ==========================
-    # (Giữ nguyên toàn bộ phần vẽ biểu đồ xu hướng của bạn)
     st.subheader("Phân tích Xu hướng theo thời gian")
     if not df_filtered.empty:
         df_trend = df_filtered.groupby('date').agg({
