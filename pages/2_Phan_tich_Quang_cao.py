@@ -9,7 +9,7 @@ from utils.auth import check_password
 
 # ========================== CẤU HÌNH TRANG ==========================
 st.set_page_config(layout="wide")
-# check_password()
+check_password()
 
 # ========================== CÁC HÀM PHỤ TRỢ (FALLBACK & HELPERS) ==========================
 # Giữ nguyên các hàm của bạn, đảm bảo code chạy độc lập
