@@ -1,28 +1,103 @@
-import plotly.express as px
 
-def plot_trends_line_chart(st, df):
-    """Vẽ biểu đồ line chart xu hướng Lượt xem và Tương tác."""
+
+import plotly.express as px
+import pandas as pd # Import pandas if not already imported
+
+import plotly.express as px
+import pandas as pd
+import streamlit as st # Đảm bảo bạn đã import streamlit là 'st'
+
+def plot_trends_interactive_line_charts(st, df):
+    """
+    Vẽ biểu đồ line chart xu hướng Lượt xem và Tương tác.
+    Cho phép chọn kênh để xem và so sánh dễ dàng hơn.
+    """
     try:
-        y_cols = ["Lượt xem (views)", "Engagement (like/ cmt/ share)"]
-        fig = px.line(
-            df, x='Ngày Bắt Đầu', y=y_cols, color='Tên kênh',
-            title='Xu Hướng Lượt Xem và Tương Tác',
-            labels={'value': 'Số lượng', 'variable': 'Chỉ số', 'Ngày Bắt Đầu': 'Ngày'},
-            markers=True
+        all_channels = df['Tên kênh'].unique()
+        
+        # Thêm widget multiselect để người dùng chọn các kênh
+        st.subheader("Chọn kênh để xem xu hướng Lượt xem và Tương tác:")
+        selected_channels_trends = st.multiselect(
+            'Kênh:',
+            options=all_channels,
+            default=list(all_channels) # Mặc định chọn tất cả các kênh
         )
-        fig.update_layout(legend_title_text='Tên kênh')
-        st.plotly_chart(fig, use_container_width=True)
+
+        if not selected_channels_trends:
+            st.info("Vui lòng chọn ít nhất một kênh để hiển thị biểu đồ xu hướng.")
+            return
+
+        # Lọc DataFrame chỉ với các kênh đã chọn
+        df_filtered = df[df['Tên kênh'].isin(selected_channels_trends)]
+
+        # Biểu đồ cho Lượt xem (views)
+        st.subheader("Xu Hướng Lượt Xem")
+        fig_views = px.line(
+            df_filtered,
+            x='Ngày Bắt Đầu',
+            y="Lượt xem (views)",
+            color='Tên kênh', # Giữ màu sắc để phân biệt các kênh trên cùng một biểu đồ
+            title='Xu Hướng Lượt Xem Theo Kênh Được Chọn',
+            labels={'value': 'Lượt xem', 'Ngày Bắt Đầu': 'Ngày'},
+            markers=True,
+            height=500 # Đặt chiều cao cố định để dễ nhìn
+        )
+        fig_views.update_layout(legend_title_text='Tên kênh')
+        st.plotly_chart(fig_views, use_container_width=True)
+
+        # Biểu đồ cho Engagement (like/ cmt/ share)
+        st.subheader("Xu Hướng Tương Tác")
+        fig_engagement = px.line(
+            df_filtered,
+            x='Ngày Bắt Đầu',
+            y="Engagement (like/ cmt/ share)",
+            color='Tên kênh', # Giữ màu sắc để phân biệt các kênh trên cùng một biểu đồ
+            title='Xu Hướng Tương Tác Theo Kênh Được Chọn',
+            labels={'value': 'Tương tác', 'Ngày Bắt Đầu': 'Ngày'},
+            markers=True,
+            height=500 # Đặt chiều cao cố định để dễ nhìn
+        )
+        fig_engagement.update_layout(legend_title_text='Tên kênh')
+        st.plotly_chart(fig_engagement, use_container_width=True)
+
     except Exception as e:
         st.error(f"Lỗi khi tạo biểu đồ xu hướng: {e}")
 
-def plot_follower_growth_line_chart(st, df):
-    """Vẽ biểu đồ line chart tăng trưởng Follower."""
+def plot_follower_growth_interactive_line_chart(st, df):
+    """
+    Vẽ biểu đồ line chart tăng trưởng Follower.
+    Cho phép chọn kênh để xem và so sánh dễ dàng hơn.
+    """
     try:
+        all_channels = df['Tên kênh'].unique()
+        
+        # Thêm widget multiselect để người dùng chọn các kênh
+        st.subheader("Chọn kênh để xem tăng trưởng Follower:")
+        selected_channels_follower = st.multiselect(
+            'Kênh:',
+            options=all_channels,
+            default=list(all_channels), # Mặc định chọn tất cả các kênh
+            key='follower_channels_select' # Đặt key duy nhất nếu có nhiều multiselect trên cùng một trang
+        )
+
+        if not selected_channels_follower:
+            st.info("Vui lòng chọn ít nhất một kênh để hiển thị biểu đồ tăng trưởng Follower.")
+            return
+
+        # Lọc DataFrame chỉ với các kênh đã chọn
+        df_filtered = df[df['Tên kênh'].isin(selected_channels_follower)]
+
+        # Biểu đồ tăng trưởng Follower
+        st.subheader("Tăng Trưởng Follower")
         fig = px.line(
-            df, x='Ngày Bắt Đầu', y='Follower', color='Tên kênh',
-            title='Tăng Trưởng Follower',
+            df_filtered,
+            x='Ngày Bắt Đầu',
+            y='Follower',
+            color='Tên kênh', # Giữ màu sắc để phân biệt các kênh trên cùng một biểu đồ
+            title='Tăng Trưởng Follower Theo Kênh Được Chọn',
             labels={'Follower': 'Số lượng Follower', 'Ngày Bắt Đầu': 'Ngày'},
-            markers=True
+            markers=True,
+            height=500 # Đặt chiều cao cố định để dễ nhìn
         )
         fig.update_layout(legend_title_text='Tên kênh')
         st.plotly_chart(fig, use_container_width=True)

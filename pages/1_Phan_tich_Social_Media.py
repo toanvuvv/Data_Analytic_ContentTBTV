@@ -6,8 +6,8 @@ from utils.auth import check_password
 # Nhập các hàm đã được tách ra từ module utils
 from utils.data_processing import extract_social_data
 from utils.plotting import (
-    plot_trends_line_chart,
-    plot_follower_growth_line_chart,
+    plot_trends_interactive_line_charts,
+    plot_follower_growth_interactive_line_chart,
     plot_comparison_bar_chart,
     plot_content_pie_chart,
     plot_content_distribution_bar_chart # <-- THÊM HÀM MỚI
@@ -36,7 +36,7 @@ REQUIRED_METRICS = [
 ]
 
 CONTENT_METRICS = ["Video/ clips/ Reels", "Text + Ảnh", "Back + text"]
-check_password()
+# check_password()
 st.set_page_config(layout="wide")
 
 # Vị trí file tạm để lưu link Google Sheet cho trang Social
@@ -76,7 +76,7 @@ def render_social_dashboard():
     )
 
     key_cell_input = st.sidebar.text_input(
-        "Nhập danh sách key cell (phân tách bởi dấu phẩy):", value="FB,TT,OA",
+        "Nhập danh sách key cell (phân tách bởi dấu phẩy):", value="FB,TT,OA,YT,ZL",
         key="social_keys"
     )
     key_cells = [s.strip().upper() for s in key_cell_input.split(",") if s.strip()]
@@ -193,8 +193,9 @@ def render_social_dashboard():
 
     with c1:
         st.write("#### 📈 Xu Hướng Theo Thời Gian")
-        plot_trends_line_chart(st, df_filtered)
-        plot_follower_growth_line_chart(st, df_filtered)
+        plot_trends_interactive_line_charts(st, df_filtered)
+    # Thay thế hàm cũ bằng hàm tương tác mới
+        plot_follower_growth_interactive_line_chart(st, df_filtered)
 
     with c2:
         st.write("#### 📊 So Sánh Hiệu Suất Giữa Các Kênh")
