@@ -36,7 +36,7 @@ REQUIRED_METRICS = [
 ]
 
 CONTENT_METRICS = ["Video/ clips/ Reels", "Text + Ảnh", "Back + text"]
-# check_password()
+check_password()
 st.set_page_config(layout="wide")
 
 # Vị trí file tạm để lưu link Google Sheet cho trang Social
